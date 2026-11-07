@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои задачи</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .app {
+            background: #fff;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            padding: 32px;
+        }
+        h1 { font-size: 24px; margin-bottom: 24px; color: #1a1a2e; }
+        .input-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .input-row input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .input-row input:focus { border-color: #4f46e5; }
+        .input-row button {
+            padding: 12px 20px;
+            background: #4f46e5;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .input-row button:hover { background: #4338ca; }
+        ul { list-style: none; }
+        li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        li:last-child { border-bottom: none; }
+        li .task-text {
+            flex: 1;
+            font-size: 15px;
+            color: #333;
+            word-break: break-word;
+            transition: color 0.2s, text-decoration 0.2s;
+        }
+        li.done .task-text {
+            text-decoration: line-through;
+            color: #aaa;
+        }
+        .toggle-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            background: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: transparent;
+            transition: all 0.2s;
+        }
+        li.done .toggle-btn {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: #fff;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #ccc;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+            flex-shrink: 0;
+        }
+        .delete-btn:hover { color: #e74c3c; background: #fef0ef; }
+        .empty-state {
+            text-align: center;
+            color: #bbb;
+            padding: 30px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <h1>📋 Список задач</h1>
+        <div class="input-row">
+            <input type="text" id="taskInput" placeholder="Что нужно сделать?" autocomplete="off" aria-label="Новая задача">
+            <button id="addBtn" type="button">Добавить</button>
+        </div>
+        <ul id="taskList"></ul>
+        <div class="empty-state" id="emptyState">Пока нет задач. Добавьте первую!</div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'my_todo_tasks';
+        const taskInput = document.getElementById('taskInput');
+        const addBtn = document.getElementById('addBtn');
+        const taskList = document.getElementById('taskList');
+        const emptyState = document.getElementById('emptyState');
+
+        // Загрузка задач из localStorage (с защитой от битого JSON)
+        let tasks = [];
+        try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+            if (Array.isArray(saved)) tasks = saved;
+        } catch (e) {
+            tasks = [];
+        }
+
+        function saveTasks() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+        }
+
+        function render() {
+            taskList.replaceChildren();
+            if (tasks.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                if (task.done) li.classList.add('done');
+
+                // Кнопка-кружок для отметки выполнения
+                const toggleBtn = document.createElement('button');
+                toggleBtn.type = 'button';
+                toggleBtn.className = 'toggle-btn';
+                toggleBtn.textContent = '✓';
+                toggleBtn.setAttribute('aria-label', task.done ? 'Снять отметку' : 'Отметить выполненной');
+                toggleBtn.addEventListener('click', () => {
+                    tasks[index].done = !tasks[index].done;
+                    saveTasks();
+                    render();
+                });
+
+                // Текст задачи (textContent — защита от XSS)
+                const span = document.createElement('span');
+                span.className = 'task-text';
+                span.textContent = task.text;
+
+                // Кнопка удаления
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = '✕';
+                delBtn.setAttribute('aria-label', 'Удалить задачу');
+                delBtn.addEventListener('click', () => {
+                    tasks.splice(index, 1);
+                    saveTasks();
+                    render();
+                });
+
+                li.appendChild(toggleBtn);
+                li.appendChild(span);
+                li.appendChild(delBtn);
+                taskList.appendChild(li);
+            });
+        }
+
+        function addTask() {
+            const text = taskInput.value.trim();
+            if (!text) {
+                taskInput.focus();
+                return;
+            }
+            tasks.push({ text: text, done: false });
+            saveTasks();
+            taskInput.value = '';
+            render();
+            taskInput.focus();
+        }
+
+        addBtn.addEventListener('click', addTask);
+        taskInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+
+        // Первоначальный рендер
+        render();
+    </script>
+</body>
+</html>
